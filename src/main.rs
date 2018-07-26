@@ -37,7 +37,6 @@ fn main() {
 
             message.date += 20;
 
-            println!("ADD {} {} {}", message.id, message.date, now);
             storage.borrow_mut().add(message);
         }
 
@@ -50,7 +49,6 @@ fn main() {
             let mut storage = storage.borrow_mut();
 
             for (chat_id, message_id) in storage.clean() {
-                println!("RM {}", message_id);
                 api.spawn(DeleteMessage::new(chat_id, message_id));
             }
 
