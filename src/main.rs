@@ -27,16 +27,7 @@ fn main() {
     let storage = RefCell::new(Storage::new(LIFETIME));
 
     let fetching = api.stream().for_each(|update| {
-        if let UpdateKind::Message(mut message) = update.kind {
-            use std::time::{SystemTime, UNIX_EPOCH};
-
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-
-            message.date += 20;
-
+        if let UpdateKind::Message(message) = update.kind {
             storage.borrow_mut().add(message);
         }
 
