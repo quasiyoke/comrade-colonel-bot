@@ -1,6 +1,6 @@
 [package]
 name = "comrade-colonel-bot"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Paul Loyd <pavelko95@gmail.com>"]
 
 [dependencies]
