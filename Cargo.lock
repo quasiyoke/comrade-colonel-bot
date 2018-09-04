@@ -77,7 +77,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "comrade-colonel-bot"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "futures 0.1.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "telegram-bot 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
