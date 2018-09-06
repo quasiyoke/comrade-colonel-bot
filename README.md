@@ -5,7 +5,8 @@ Telegram bot removing group chat messages after specified period of time.
 To try it quickly, run:
 
 ```sh
-export TELEGRAM_BOT_TOKEN=123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789
+export TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+export STORAGE_PATH=/var/lib/comrade-colonel-bot/db.sqlite3
 export MESSAGE_LIFETIME=5
 export DELETION_PERIOD=1
 cargo run
@@ -20,14 +21,14 @@ Don't forget to specify your actual Telegram bot token (you're able to get one f
 1. Create Kubernetes' secret containing Telegram bot token:
 
    ```sh
-   echo -n '123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789' > ./telegram-bot-token
+   echo -n '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' > ./telegram-bot-token
    kubectl create secret generic comrade-colonel-bot --from-file=./telegram-bot-token
    ```
 
 1. Fetch bot's deployment configuration file and run the bot:
 
    ```sh
-   curl https://raw.githubusercontent.com/loyd/comrade-colonel-bot/master/kubernetes-deployment.yml | kubectl -f -
+   curl https://raw.githubusercontent.com/quasiyoke/comrade-colonel-bot/master/kubernetes.yml | kubectl -f -
    ```
 
    Default configuration assumes chat messages lifetime of 42 hours.

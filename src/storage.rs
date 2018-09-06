@@ -1,41 +1,26 @@
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use telegram_bot::{ChatId, Message, MessageId};
+use rusqlite::{Connection, OpenFlags};
+use telegram_bot::{ChatId, Message as TelegramMessage, MessageId};
+use time::Timespec;
 
-#[derive(Eq)]
-struct Item {
-    chat_id: ChatId,
-    message_id: MessageId,
-    date: u64,
+#[derive(Debug)]
+pub struct Message {
+    id: u32,
+    pub telegram_id: MessageId,
+    pub chat_telegram_id: ChatId,
+    date: Timespec,
 }
 
-impl From<Message> for Item {
-    fn from(message: Message) -> Item {
-        Item {
-            chat_id: message.chat.id(),
-            message_id: message.id,
-            date: message.date as u64,
+impl From<TelegramMessage> for Message {
+    fn from(message: TelegramMessage) -> Message {
+        Message {
+            id: 0,
+            telegram_id: message.id,
+            chat_telegram_id: message.chat.id(),
+            date: Timespec::new(message.date, 0),
         }
-    }
-}
-
-impl Ord for Item {
-    fn cmp(&self, other: &Item) -> Ordering {
-        other.date.cmp(&self.date)
-    }
-}
-
-impl PartialOrd for Item {
-    fn partial_cmp(&self, other: &Item) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for Item {
-    fn eq(&self, other: &Item) -> bool {
-        self.date == other.date
     }
 }
 
@@ -47,45 +32,81 @@ fn now() -> u64 {
 }
 
 pub struct Storage {
-    heap: BinaryHeap<Item>,
+    connection: Connection,
     lifetime: u64,
 }
 
 impl Storage {
-    pub fn new(lifetime: u64) -> Storage {
+    pub fn new(path: &String, lifetime: u64) -> Storage {
+        debug!("Looking for storage at `{}`", path);
+        let connection = Connection::open_with_flags(
+            Path::new(path),
+            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
+        ).unwrap();
+        connection
+            .execute(
+                "CREATE TABLE IF NOT EXISTS message (
+                    id                  INTEGER PRIMARY KEY,
+                    telegram_id         INTEGER NOT NULL,
+                    chat_telegram_id    INTEGER NOT NULL,
+                    date                TEXT NOT NULL
+                )",
+                &[],
+            )
+            .expect("Troubles during table creation");
         Storage {
-            heap: BinaryHeap::new(),
+            connection,
             lifetime,
         }
     }
 
-    pub fn add(&mut self, message: Message) {
-        self.heap.push(message.into())
+    pub fn add(&self, message: TelegramMessage) {
+        let message: Message = message.into();
+        debug!("Inserting message {:?}", message);
+        let telegram_id: i64 = message.telegram_id.into();
+        let chat_telegram_id: i64 = message.chat_telegram_id.into();
+        self.connection
+            .execute(
+                "INSERT INTO message (telegram_id, chat_telegram_id, date)
+                    VALUES (?1, ?2, ?3)",
+                &[&telegram_id, &chat_telegram_id, &message.date],
+            )
+            .expect("Troubles during message insertion");
     }
 
-    pub fn clean(&mut self) -> OutdateIter {
-        OutdateIter {
-            heap: &mut self.heap,
-            date: now() - self.lifetime,
-        }
+    pub fn clean(&self) -> Vec<Message> {
+        let threshold_date = self.threshold_date();
+        debug!("Looking for messages before {:?} to delete", threshold_date);
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT id, telegram_id, chat_telegram_id, date
+                FROM message
+                WHERE date < ?1",
+            )
+            .unwrap();
+        let messages_iterator = statement
+            .query_map(&[&threshold_date], |row| {
+                let telegram_id: i64 = row.get(1);
+                let chat_telegram_id: i64 = row.get(2);
+                Message {
+                    id: row.get(0),
+                    telegram_id: telegram_id.into(),
+                    chat_telegram_id: chat_telegram_id.into(),
+                    date: row.get(3),
+                }
+            })
+            .expect("Binding parameters to the query for messages to delete was failed")
+            .filter_map(|message_result| message_result.ok());
+        let messages = messages_iterator.collect();
+        self.connection
+            .execute("DELETE FROM message WHERE date < ?1", &[&threshold_date])
+            .unwrap();
+        messages
     }
-}
 
-pub struct OutdateIter<'a> {
-    heap: &'a mut BinaryHeap<Item>,
-    date: u64,
-}
-
-impl<'a> Iterator for OutdateIter<'a> {
-    type Item = (ChatId, MessageId);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.heap.peek() {
-            if item.date > self.date {
-                return None;
-            }
-        }
-
-        self.heap.pop().map(|item| (item.chat_id, item.message_id))
+    fn threshold_date(&self) -> Timespec {
+        let threshold_timestamp = now() - self.lifetime;
+        Timespec::new(threshold_timestamp as i64, 0)
     }
 }
