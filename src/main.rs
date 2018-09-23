@@ -4,7 +4,6 @@ extern crate env_logger;
 extern crate futures;
 extern crate rusqlite;
 extern crate telegram_bot;
-extern crate time;
 extern crate tokio_core;
 
 use std::cell::RefCell;
@@ -42,7 +41,7 @@ fn main() {
 
     let message_lifetime = env_var("MESSAGE_LIFETIME").unwrap_or(MESSAGE_LIFETIME_DEFAULT);
     let storage_path: String =
-        env_var("STORAGE_PATH").expect("Please specify STORAGE_PATH environment variable");
+        env::var("STORAGE_PATH").expect("Please specify STORAGE_PATH environment variable");
     let storage = RefCell::new(Storage::new(&storage_path, message_lifetime));
 
     let fetching = api.stream().for_each(|update| {
@@ -57,9 +56,9 @@ fn main() {
     let deletion = Interval::new(Duration::from_secs(deletion_period), &handle)
         .unwrap()
         .for_each(|_| {
-            let storage = storage.borrow_mut();
+            let mut storage = storage.borrow_mut();
 
-            for message in storage.clean() {
+            for message in storage.clean().unwrap() {
                 info!("Deleting message {:?}", message);
                 api.spawn(DeleteMessage::new(
                     message.chat_telegram_id,
@@ -68,8 +67,7 @@ fn main() {
             }
 
             Ok(())
-        })
-        .map_err(From::from);
+        }).map_err(From::from);
 
     info!(
         "Starting. Message lifetime: {} s, deletion period: {} s.",

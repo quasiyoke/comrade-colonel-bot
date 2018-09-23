@@ -9,8 +9,8 @@ spec:
     capacity:
         storage: 50Mi
     accessModes:
-        - ReadWriteOnce
-        - ReadWriteMany
+    -   ReadWriteOnce
+    -   ReadWriteMany
     hostPath:
         path: /var/lib/comrade-colonel-bot
 ---
@@ -21,8 +21,8 @@ metadata:
 spec:
     storageClassName: manual
     accessModes:
-        - ReadWriteOnce
-        - ReadWriteMany
+    -   ReadWriteOnce
+    -   ReadWriteMany
     resources:
         requests:
             storage: 50Mi

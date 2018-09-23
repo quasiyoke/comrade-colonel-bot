@@ -1,5 +1,7 @@
 # Comrade Colonel Bot
 
+[![Build Status](https://travis-ci.com/quasiyoke/comrade-colonel-bot.svg?branch=master)](https://travis-ci.com/quasiyoke/comrade-colonel-bot)
+
 Telegram bot removing group chat messages after specified period of time.
 
 To try it quickly, run:
