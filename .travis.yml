@@ -1,8 +1,13 @@
 language: rust
+before_install:
+    - nvm install 11.2
+install:
+    - npm install
 before_script:
     - rustup component add clippy-preview
     - rustup component add rustfmt-preview
 script:
     - cargo fmt --all -- --check
     - cargo clippy -- --deny warnings
-    - cargo check
+    - cargo build
+    - npm test

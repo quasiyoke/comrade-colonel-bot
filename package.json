@@ -1,0 +1,28 @@
+{
+  "scripts": {
+    "test": "run-p test:*",
+    "test:e2e": "jest",
+    "test:lint": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quasiyoke/comrade-colonel-bot.git"
+  },
+  "license": "AGPL-3.0-or-later",
+  "devDependencies": {
+    "@babel/core": "^7.1.6",
+    "@babel/preset-env": "^7.1.6",
+    "babel-core": "^7.0.0-bridge.0",
+    "babel-eslint": "^9.0.0",
+    "babel-jest": "^23.6.0",
+    "eslint": "^5.9.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-jest": "^21.27.2",
+    "jest": "^23.6.0",
+    "npm-run-all": "^4.1.5",
+    "sql-template-strings": "^2.2.2",
+    "sqlite": "^3.0.0",
+    "telegram-test-api": "git+https://github.com/quasiyoke/telegram-test-api.git"
+  }
+}
