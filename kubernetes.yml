@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    name: comrade-colonel-bot-pv
+    labels:
+        type: local
+spec:
+    storageClassName: manual
+    capacity:
+        storage: 50Mi
+    accessModes:
+    -   ReadWriteOnce
+    -   ReadWriteMany
+    hostPath:
+        path: /var/lib/comrade-colonel-bot
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: comrade-colonel-bot-pv-claim
+spec:
+    storageClassName: manual
+    accessModes:
+    -   ReadWriteOnce
+    -   ReadWriteMany
+    resources:
+        requests:
+            storage: 50Mi
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: comrade-colonel-bot
+spec:
+    replicas: 1
+    template:
+        metadata:
+            labels:
+                app: comrade-colonel-bot
+        spec:
+            containers:
+            -   name: comrade-colonel-bot
+                image: quasiyoke/comrade-colonel-bot:latest
+                env:
+                -   name: RUST_LOG
+                    value: comrade_colonel_bot=info
+                -   name: STORAGE_PATH
+                    value: /var/lib/comrade-colonel-bot/db.sqlite3
+                -   name: TELEGRAM_BOT_TOKEN
+                    valueFrom:
+                        secretKeyRef:
+                            name: comrade-colonel-bot
+                            key: telegram-bot-token
+                volumeMounts:
+                -   name: comrade-colonel-bot-persistent-storage
+                    mountPath: /var/lib/comrade-colonel-bot
+            volumes:
+            -   name: comrade-colonel-bot-persistent-storage
+                persistentVolumeClaim:
+                    claimName: comrade-colonel-bot-pv-claim

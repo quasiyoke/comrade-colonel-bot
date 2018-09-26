@@ -1,4 +1,8 @@
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 extern crate futures;
+extern crate rusqlite;
 extern crate telegram_bot;
 extern crate tokio_core;
 
@@ -27,6 +31,7 @@ fn env_var<T: str::FromStr>(name: &str) -> Option<T> {
 }
 
 fn main() {
+    env_logger::init();
     let mut core = Core::new().unwrap();
     let handle = core.handle();
 
@@ -35,7 +40,9 @@ fn main() {
     let api = Api::configure(token).build(&handle).unwrap();
 
     let message_lifetime = env_var("MESSAGE_LIFETIME").unwrap_or(MESSAGE_LIFETIME_DEFAULT);
-    let storage = RefCell::new(Storage::new(message_lifetime));
+    let storage_path: String =
+        env::var("STORAGE_PATH").expect("Please specify STORAGE_PATH environment variable");
+    let storage = RefCell::new(Storage::new(&storage_path, message_lifetime));
 
     let fetching = api.stream().for_each(|update| {
         if let UpdateKind::Message(message) = update.kind {
@@ -51,13 +58,20 @@ fn main() {
         .for_each(|_| {
             let mut storage = storage.borrow_mut();
 
-            for (chat_id, message_id) in storage.clean() {
-                api.spawn(DeleteMessage::new(chat_id, message_id));
+            for message in storage.clean().unwrap() {
+                info!("Deleting message {:?}", message);
+                api.spawn(DeleteMessage::new(
+                    message.chat_telegram_id,
+                    message.telegram_id,
+                ));
             }
 
             Ok(())
-        })
-        .map_err(From::from);
+        }).map_err(From::from);
 
+    info!(
+        "Starting. Message lifetime: {} s, deletion period: {} s.",
+        message_lifetime, deletion_period
+    );
     core.run(fetching.join(deletion)).unwrap();
 }
