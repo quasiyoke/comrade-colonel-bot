@@ -1,0 +1,16 @@
+version: '3.3'
+services:
+  bot:
+    image: quasiyoke/comrade-colonel-bot
+    secrets:
+      - telegram_bot_token
+    environment:
+      RUST_BACKTRACE: '1'
+      RUST_LOG: comrade_colonel_bot=info
+      STORAGE_PATH: /var/lib/comrade-colonel-bot/db.sqlite3
+    restart: always
+    volumes:
+      - /var/lib/comrade-colonel-bot/:/var/lib/comrade-colonel-bot/
+secrets:
+  telegram_bot_token:
+    file: ./telegram-bot-token

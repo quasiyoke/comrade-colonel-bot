@@ -1,6 +1,6 @@
 [package]
 name = "comrade-colonel-bot"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Paul Loyd <pavelko95@gmail.com>", "Petr Ermishkin <quasiyoke@gmail.com>"]
 
 [dependencies]
@@ -8,7 +8,7 @@ env_logger = "0.5"
 log = "0.4"
 tokio-core = "0.1.17"
 futures = "0.1.23"
-telegram-bot = "0.6.1"
+telegram-bot = { git = "https://github.com/quasiyoke/telegram-bot.git", branch = "e2e-testing" }
 
 [dependencies.rusqlite]
 version = "0.14"
