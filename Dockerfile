@@ -1,4 +1,4 @@
-FROM rust:1.29.0
+FROM rust:1.30.1
 WORKDIR /usr/src/comrade-colonel-bot
 COPY . .
 RUN cargo build --release

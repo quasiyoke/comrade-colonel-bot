@@ -44,7 +44,7 @@ export const runApp = async (storageStub = null, options = {}) => {
             RUST_LOG: 'comrade_colonel_bot=debug',
             STORAGE_PATH,
             TELEGRAM_API_URL,
-            TELEGRAM_BOT_TOKEN,
+            telegram_bot_token: TELEGRAM_BOT_TOKEN,
         }, options.env),
     };
 

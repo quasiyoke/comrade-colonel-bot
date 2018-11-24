@@ -8,6 +8,9 @@ extern crate tokio_core;
 
 use std::cell::RefCell;
 use std::env;
+use std::fs::File;
+use std::io;
+use std::io::prelude::*;
 use std::str;
 use std::time::Duration;
 
@@ -30,13 +33,24 @@ fn env_var<T: str::FromStr>(name: &str) -> Option<T> {
     env::var(name).ok().and_then(|env_var| env_var.parse().ok())
 }
 
+/// Obtains Docker Secret or corresponding environment variable value.
+fn secret(name: &str) -> Option<String> {
+    env::var(name)
+        .or_else(|_| -> Result<String, io::Error> {
+            let mut f = File::open(format!("/run/secrets/{}", name))?;
+            let mut value = String::new();
+            f.read_to_string(&mut value)?;
+            Ok(value)
+        }).ok()
+}
+
 fn main() {
     env_logger::init();
     let mut core = Core::new().unwrap();
     let handle = core.handle();
 
-    let token = env::var("TELEGRAM_BOT_TOKEN")
-        .expect("Please specify TELEGRAM_BOT_TOKEN environment variable");
+    let token = secret("telegram_bot_token")
+        .expect("Please specify `telegram_bot_token` environment variable");
     let api = Api::configure(token).build(&handle).unwrap();
 
     let message_lifetime = env_var("MESSAGE_LIFETIME").unwrap_or(MESSAGE_LIFETIME_DEFAULT);
