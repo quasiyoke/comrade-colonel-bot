@@ -1,10 +1,5 @@
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-extern crate futures;
-extern crate rusqlite;
-extern crate telegram_bot;
-extern crate tokio_core;
 
 use std::cell::RefCell;
 use std::env;
@@ -18,7 +13,7 @@ use futures::{Future, Stream};
 use telegram_bot::{Api, DeleteMessage, UpdateKind};
 use tokio_core::reactor::{Core, Interval};
 
-use storage::Storage;
+use self::storage::Storage;
 
 mod storage;
 
@@ -41,7 +36,8 @@ fn secret(name: &str) -> Option<String> {
             let mut value = String::new();
             f.read_to_string(&mut value)?;
             Ok(value)
-        }).ok()
+        })
+        .ok()
 }
 
 fn main() {
@@ -50,12 +46,12 @@ fn main() {
     let handle = core.handle();
 
     let token = secret("telegram_bot_token")
-        .expect("Please specify `telegram_bot_token` environment variable");
+        .expect("please specify `telegram_bot_token` environment variable");
     let api = Api::configure(token).build(&handle).unwrap();
 
     let message_lifetime = env_var("MESSAGE_LIFETIME").unwrap_or(MESSAGE_LIFETIME_DEFAULT);
     let storage_path: String =
-        env::var("STORAGE_PATH").expect("Please specify STORAGE_PATH environment variable");
+        env::var("STORAGE_PATH").expect("please specify STORAGE_PATH environment variable");
     let storage = RefCell::new(Storage::new(&storage_path, message_lifetime));
 
     let fetching = api.stream().for_each(|update| {
@@ -73,7 +69,7 @@ fn main() {
             let mut storage = storage.borrow_mut();
 
             for message in storage.clean().unwrap() {
-                info!("Deleting message {:?}", message);
+                info!("deleting message {:?}", message);
                 api.spawn(DeleteMessage::new(
                     message.chat_telegram_id,
                     message.telegram_id,
@@ -81,10 +77,11 @@ fn main() {
             }
 
             Ok(())
-        }).map_err(From::from);
+        })
+        .map_err(From::from);
 
     info!(
-        "Starting. Message lifetime: {} s, deletion period: {} s.",
+        "starting. Message lifetime: {} s, deletion period: {} s.",
         message_lifetime, deletion_period
     );
     core.run(fetching.join(deletion)).unwrap();

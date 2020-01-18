@@ -37,11 +37,12 @@ pub struct Storage {
 
 impl Storage {
     pub fn new(path: &str, lifetime: u64) -> Storage {
-        debug!("Looking for storage at `{}`", path);
+        debug!("looking for storage at `{}`", path);
         let connection = Connection::open_with_flags(
             Path::new(&String::from(path)),
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
-        ).unwrap();
+        )
+        .unwrap();
         connection
             .execute(
                 "CREATE TABLE IF NOT EXISTS message (
@@ -51,7 +52,8 @@ impl Storage {
                     date                INTEGER NOT NULL
                 )",
                 &[],
-            ).expect("Troubles during table creation");
+            )
+            .expect("troubles during table creation");
         Storage {
             connection,
             lifetime,
@@ -60,7 +62,7 @@ impl Storage {
 
     pub fn add(&self, message: TelegramMessage) {
         let message: Message = message.into();
-        debug!("Inserting message {:?}", message);
+        debug!("inserting message {:?}", message);
         let telegram_id: i64 = message.telegram_id.into();
         let chat_telegram_id: i64 = message.chat_telegram_id.into();
         self.connection
@@ -68,7 +70,8 @@ impl Storage {
                 "INSERT INTO message (telegram_id, chat_telegram_id, date)
                     VALUES (?1, ?2, ?3)",
                 &[&telegram_id, &chat_telegram_id, &(message.date as i64)],
-            ).expect("Troubles during message insertion");
+            )
+            .expect("troubles during message insertion");
     }
 
     pub fn clean(&mut self) -> Result<Vec<Message>> {
@@ -80,7 +83,7 @@ impl Storage {
 }
 
 fn delete_obsolete_messages(connection: &Connection, threshold_date: u64) -> Result<Vec<Message>> {
-    debug!("Looking for obsolete messages before {}", threshold_date);
+    debug!("looking for obsolete messages before {}", threshold_date);
 
     let mut statement = connection.prepare(
         "SELECT id, telegram_id, chat_telegram_id, date
@@ -98,9 +101,10 @@ fn delete_obsolete_messages(connection: &Connection, threshold_date: u64) -> Res
                 chat_telegram_id: chat_telegram_id.into(),
                 date: date as u64,
             }
-        })?.filter_map(|message_result| message_result.ok());
+        })?
+        .filter_map(|message_result| message_result.ok());
     let messages: Vec<Message> = messages_iterator.collect();
-    debug!("Obsolete messages found: {}", messages.len());
+    debug!("obsolete messages found: {}", messages.len());
 
     connection.execute(
         "DELETE FROM message
