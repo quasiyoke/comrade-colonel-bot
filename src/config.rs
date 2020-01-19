@@ -7,7 +7,6 @@ pub struct Config {
     #[serde(deserialize_with = "deserialize_telegram_bot_token")]
     pub telegram_bot_token: Secret<String>,
     pub storage_path: String,
-    /// Default chat message lifetime.
     /// Please [note][1] that message can only be deleted if it was sent less than 48 hours ago.
     /// [1]: https://core.telegram.org/bots/api#deletemessage
     #[serde(with = "humantime_serde")]
@@ -16,6 +15,8 @@ pub struct Config {
     #[serde(with = "humantime_serde")]
     #[serde(default = "default_deletion_period")]
     pub deletion_period: Duration,
+    #[serde(default = "default_nodelete_hashtags")]
+    pub nodelete_hashtags: Vec<String>,
 }
 
 /// Obtains Docker Secret or corresponding environment variable value.
@@ -38,6 +39,10 @@ fn default_message_lifetime() -> Duration {
 
 fn default_deletion_period() -> Duration {
     Duration::from_secs(5 * 60)
+}
+
+fn default_nodelete_hashtags() -> Vec<String> {
+    vec!["nodelete".into()]
 }
 
 #[derive(Deserialize)]

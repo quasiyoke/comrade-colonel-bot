@@ -164,4 +164,36 @@ describe('Regular chat message', () => {
 
     testDeletionAfterMessageLifetime(30);
     testDeletionAfterMessageLifetime(42 * 60 * 60);
+
+    describe('when the message contains hashtags', () => {
+        let client;
+
+        beforeEach(async () => {
+            client = await runApp(null, {
+                env: {
+                    NODELETE_HASHTAGS: 'aa,bbb',
+                },
+            });
+        });
+
+        // TODO(quasiyoke): the fork needs to be rebased in order to support entities.
+        // eslint-disable-next-line
+        xtest('is not appended to the DB in case of blacklisted hashtags', async () => {
+            const message1 = client.makeMessage('Some regular chat message with #aa', {
+                chat: { id: 42 },
+                date,
+                entities: [{ offset: 31, length: 3, type: 'hashtag' }],
+            });
+            await client.sendMessage(message1);
+
+            const message2 = client.makeMessage('#bbb some regular chat message', {
+                chat: { id: 42 },
+                date,
+                entities: [{ offset: 0, length: 4, type: 'hashtag' }],
+            });
+            await client.sendCommand(message2);
+
+            await assertStorage({ messages: [] });
+        });
+    });
 });
