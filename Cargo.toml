@@ -13,6 +13,7 @@ rusqlite = { version = "0.14", features = ["bundled"] }
 envy = "0.4.1"
 serde = { version = "1.0", features = ["derive"] }
 humantime-serde = "0.1.1"
+anyhow = "1.0.26"
 
 [dependencies.telegram-bot]
 git = "https://github.com/quasiyoke/telegram-bot.git"
