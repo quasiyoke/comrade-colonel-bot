@@ -19,9 +19,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let config = envy::from_env::<Config>()?;
 
-    info!("starting with config:\n{:?}", config);
+    info!("starting with config: {:?}", config);
 
-    let api = Api::configure(config.telegram_bot_token)
+    let api = Api::configure(&*config.telegram_bot_token)
         .build(&handle)
         .unwrap();
     let storage = RefCell::new(Storage::new(&config.storage_path, config.message_lifetime));
