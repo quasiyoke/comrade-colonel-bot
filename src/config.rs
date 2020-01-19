@@ -1,10 +1,10 @@
 use std::{fmt, fs, ops::Deref, time::Duration};
 
-use serde::{de, Deserialize, Deserializer};
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    #[serde(deserialize_with = "deserialize_telegram_bot_token")]
+    #[serde(default = "default_telegram_bot_token")]
     pub telegram_bot_token: Secret<String>,
     pub storage_path: String,
     /// Please [note][1] that message can only be deleted if it was sent less than 48 hours ago.
@@ -19,18 +19,11 @@ pub struct Config {
     pub nodelete_hashtags: Vec<String>,
 }
 
-/// Obtains Docker Secret or corresponding environment variable value.
-fn deserialize_telegram_bot_token<'de, D>(deserializer: D) -> Result<Secret<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Option::deserialize(deserializer)
-        .transpose()
-        .unwrap_or_else(|| {
-            fs::read_to_string("/run/secrets/telegram_bot_token")
-                .map(Secret)
-                .map_err(de::Error::custom)
-        })
+/// Obtains Docker Secret when environment variable isn't specified.
+fn default_telegram_bot_token() -> Secret<String> {
+    fs::read_to_string("/run/secrets/telegram_bot_token")
+        .map(Secret)
+        .expect("please specify telegram_bot_token as a Docker secret or environment variable")
 }
 
 fn default_message_lifetime() -> Duration {
