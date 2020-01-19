@@ -1,6 +1,6 @@
 language: rust
 before_install:
-    - nvm install 11.2
+    - nvm install --lts
 install:
     - npm install
 before_script:
