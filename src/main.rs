@@ -1,91 +1,113 @@
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-extern crate futures;
-extern crate rusqlite;
-extern crate telegram_bot;
-extern crate tokio_core;
 
 use std::cell::RefCell;
-use std::env;
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
-use std::str;
-use std::time::Duration;
 
-use futures::{Future, Stream};
-use telegram_bot::{Api, DeleteMessage, UpdateKind};
+use anyhow::{Context, Result};
+use futures::{stream, Future, Stream};
+use telegram_bot::{Api, DeleteMessage, Message, MessageEntityKind, MessageKind, UpdateKind};
 use tokio_core::reactor::{Core, Interval};
 
-use storage::Storage;
+use self::{config::Config, storage::Storage};
 
+mod config;
 mod storage;
 
-/// Default chat message lifetime (seconds).
-/// Please [note][1] that message can only be deleted if it was sent less than 48 hours ago.
-/// [1]: https://core.telegram.org/bots/api#deletemessage
-const MESSAGE_LIFETIME_DEFAULT: u64 = 42 * 60 * 60;
-/// Default deletion period (seconds).
-const DELETION_PERIOD_DEFAULT: u64 = 5 * 60;
-
-fn env_var<T: str::FromStr>(name: &str) -> Option<T> {
-    env::var(name).ok().and_then(|env_var| env_var.parse().ok())
+fn from_tg_error(err: telegram_bot::Error) -> anyhow::Error {
+    anyhow::anyhow!("{}", err)
 }
 
-/// Obtains Docker Secret or corresponding environment variable value.
-fn secret(name: &str) -> Option<String> {
-    env::var(name)
-        .or_else(|_| -> Result<String, io::Error> {
-            let mut f = File::open(format!("/run/secrets/{}", name))?;
-            let mut value = String::new();
-            f.read_to_string(&mut value)?;
-            Ok(value)
-        }).ok()
+fn to_utf16(val: impl AsRef<str>) -> Vec<u16> {
+    val.as_ref().encode_utf16().collect()
 }
 
-fn main() {
+fn are_hashtags_present(message: &Message, hashtags: &[Vec<u16>]) -> bool {
+    let (data, entities) = match &message.kind {
+        MessageKind::Text { data, entities } => (data, entities),
+        _ => return false,
+    };
+
+    let locations = entities
+        .iter()
+        .filter(|entity| entity.kind == MessageEntityKind::Hashtag)
+        .filter(|entity| hashtags.iter().any(|h| h.len() as i64 == entity.length - 1))
+        .map(|entity| (entity.offset + 1) as usize..(entity.offset + entity.length) as usize)
+        .collect::<Vec<_>>();
+
+    if locations.is_empty() {
+        return false;
+    }
+
+    let data_utf16 = to_utf16(data);
+
+    locations
+        .into_iter()
+        .filter_map(|loc| data_utf16.get(loc))
+        .any(|slice| hashtags.iter().any(|h| slice == &h[..]))
+}
+
+fn main() -> Result<()> {
     env_logger::init();
-    let mut core = Core::new().unwrap();
+    let mut core = Core::new()?;
     let handle = core.handle();
 
-    let token = secret("telegram_bot_token")
-        .expect("Please specify `telegram_bot_token` environment variable");
-    let api = Api::configure(token).build(&handle).unwrap();
+    let config = envy::from_env::<Config>().context("failed to build the config from env")?;
 
-    let message_lifetime = env_var("MESSAGE_LIFETIME").unwrap_or(MESSAGE_LIFETIME_DEFAULT);
-    let storage_path: String =
-        env::var("STORAGE_PATH").expect("Please specify STORAGE_PATH environment variable");
-    let storage = RefCell::new(Storage::new(&storage_path, message_lifetime));
+    info!("starting with config: {:?}", config);
 
-    let fetching = api.stream().for_each(|update| {
-        if let UpdateKind::Message(message) = update.kind {
-            storage.borrow_mut().add(message);
-        }
+    let api = Api::configure(&*config.telegram_bot_token)
+        .build(&handle)
+        .map_err(from_tg_error)
+        .context("failed to configure tg api")?;
 
-        Ok(())
-    });
+    let storage = Storage::new(&config.storage_path, config.message_lifetime)
+        .context("failed to open the storage")?;
+    let storage = RefCell::new(storage);
 
-    let deletion_period = env_var("DELETION_PERIOD").unwrap_or(DELETION_PERIOD_DEFAULT);
-    let deletion = Interval::new(Duration::from_secs(deletion_period), &handle)
-        .unwrap()
-        .for_each(|_| {
-            let mut storage = storage.borrow_mut();
+    let nodelete_hashtags = config
+        .nodelete_hashtags
+        .iter()
+        .map(to_utf16)
+        .collect::<Vec<_>>();
 
-            for message in storage.clean().unwrap() {
-                info!("Deleting message {:?}", message);
-                api.spawn(DeleteMessage::new(
-                    message.chat_telegram_id,
-                    message.telegram_id,
-                ));
+    let fetching = api
+        .stream()
+        .map_err(|err| from_tg_error(err).context("failed to fetch an update"))
+        .for_each(|update| {
+            if let UpdateKind::Message(message) = update.kind {
+                if are_hashtags_present(&message, &nodelete_hashtags) {
+                    return Ok(());
+                }
+
+                storage
+                    .borrow_mut()
+                    .add(message)
+                    .context("failed to add to the storage")?;
             }
 
             Ok(())
-        }).map_err(From::from);
+        });
 
-    info!(
-        "Starting. Message lifetime: {} s, deletion period: {} s.",
-        message_lifetime, deletion_period
-    );
-    core.run(fetching.join(deletion)).unwrap();
+    let deletion = Interval::new(config.deletion_period, &handle)?
+        .map_err(anyhow::Error::from)
+        .and_then(|_| {
+            let mut storage = storage.borrow_mut();
+            let messages = storage.clean().context("failed to clean the storage")?;
+            Ok(stream::iter_ok::<_, anyhow::Error>(messages))
+        })
+        .flatten()
+        .for_each(|message| {
+            info!("deleting message {:?}", message);
+
+            api.spawn(DeleteMessage::new(
+                message.chat_telegram_id,
+                message.telegram_id,
+            ));
+
+            Ok(())
+        })
+        .map_err(From::from);
+
+    core.run(fetching.join(deletion))?;
+    Ok(())
 }

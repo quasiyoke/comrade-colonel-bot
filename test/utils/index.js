@@ -12,6 +12,8 @@ import {
     stopServer,
 } from './telegram';
 
+export { now, delay } from './misc';
+
 const APP_PATH = 'target/debug/comrade-colonel-bot';
 
 /**
@@ -36,17 +38,20 @@ export const runApp = async (storageStub = null, options = {}) => {
     await createStorage(storageStub, client);
 
     expect(appProcess).toBeNull();
-    const processOptions = {
-        env: Object.assign({
-            DELETION_PERIOD,
-            MESSAGE_LIFETIME,
-            RUST_BACKTRACE: '1',
-            RUST_LOG: 'comrade_colonel_bot=debug',
-            STORAGE_PATH,
-            TELEGRAM_API_URL,
-            telegram_bot_token: TELEGRAM_BOT_TOKEN,
-        }, options.env),
-    };
+    const env = Object.assign({
+        DELETION_PERIOD,
+        MESSAGE_LIFETIME,
+        RUST_BACKTRACE: '1',
+        RUST_LOG: 'comrade_colonel_bot=debug',
+        STORAGE_PATH,
+        TELEGRAM_API_URL,
+        TELEGRAM_BOT_TOKEN,
+    }, options.env);
+
+    env.DELETION_PERIOD = `${env.DELETION_PERIOD}s`;
+    env.MESSAGE_LIFETIME = `${env.MESSAGE_LIFETIME}s`;
+
+    const processOptions = { env };
 
     if (IS_DEBUG) {
         processOptions.stdio = 'inherit';
@@ -69,12 +74,3 @@ export const stopApp = async () => {
         .kill();
     appProcess = null;
 };
-
-export const now = () => Math.floor(Date.now() / 1000);
-
-/**
- * @param {number} duration - Seconds.
- */
-export const delay = duration => new Promise(
-    resolve => setTimeout(resolve, duration * 1000),
-);

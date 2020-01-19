@@ -3,7 +3,7 @@ import fs from 'fs';
 import SQL from 'sql-template-strings';
 import sqlite from 'sqlite';
 
-import { delay } from '.';
+import { delay } from './misc';
 
 /**
  * Seconds.

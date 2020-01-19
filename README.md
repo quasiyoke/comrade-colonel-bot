@@ -7,10 +7,10 @@ Telegram bot removing group chat messages after specified period of time.
 To try it quickly, run:
 
 ```sh
-export telegram_bot_token=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+export TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
 export STORAGE_PATH=/var/lib/comrade-colonel-bot/db.sqlite3
-export MESSAGE_LIFETIME=5
-export DELETION_PERIOD=1
+export MESSAGE_LIFETIME=5s
+export DELETION_PERIOD=1s
 cargo run
 ```
 

@@ -2,14 +2,23 @@
 name = "comrade-colonel-bot"
 version = "1.0.1"
 authors = ["Paul Loyd <pavelko95@gmail.com>", "Petr Ermishkin <quasiyoke@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 env_logger = "0.5"
 log = "0.4"
 tokio-core = "0.1.17"
 futures = "0.1.23"
-telegram-bot = { git = "https://github.com/quasiyoke/telegram-bot.git", branch = "e2e-testing" }
+rusqlite = { version = "0.14", features = ["bundled"] }
+envy = "0.4.1"
+serde = { version = "1.0", features = ["derive"] }
+humantime-serde = "0.1.1"
+anyhow = "1.0.26"
 
-[dependencies.rusqlite]
-version = "0.14"
-features = ["bundled"]
+[dependencies.telegram-bot]
+git = "https://github.com/quasiyoke/telegram-bot.git"
+branch = "e2e-testing"
+
+# TODO(quasiyoke): the fork needs to be rebased in order to use the default connector.
+default_features = false
+features = ["curl_connector"]
